@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Smart Task Manager</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f0f2f5;
+      padding: 20px;
+    }
+
+    h1 {
+      text-align: center;
+      color: #333;
+    }
+
+    .summary {
+      display: flex;
+      justify-content: center;
+      gap: 30px;
+      margin-bottom: 20px;
+    }
+
+    .summary span {
+      font-weight: bold;
+      background: #fff;
+      padding: 10px 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    form {
+      background: #fff;
+      padding: 15px;
+      border-radius: 10px;
+      max-width: 700px;
+      margin: auto;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+
+    form input, form select, form textarea {
+      margin: 10px 0;
+      padding: 8px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    form button {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    form button:hover {
+      background-color: #0056b3;
+    }
+
+    #labelContainer {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 10px 0;
+    }
+
+    #labelContainer label {
+      background: #f4f4f4;
+      padding: 5px 10px;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+
+    .task-section {
+      margin-top: 30px;
+    }
+
+    .task-area {
+      background: #fff;
+      padding: 15px;
+      border-radius: 10px;
+      min-height: 80px;
+      box-shadow: 0 1px 5px rgba(0,0,0,0.1);
+    }
+
+    .task {
+      background: #fff;
+      border-radius: 5px;
+      padding: 10px;
+      margin: 8px 0;
+      cursor: grab;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      transition: 0.2s;
+    }
+
+    .completed { background-color: #e0f8e9; }
+    .normal { background-color: #fff6c4; }
+    .important { background-color: #ffe4e4; }
+
+    .task-content {
+      flex: 1;
+      padding-right: 10px;
+    }
+
+    .project-badge {
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 0.8em;
+      color: #fff;
+      margin-left: auto;
+      white-space: nowrap;
+    }
+
+    .label-tag {
+      display: inline-block;
+      padding: 3px 8px;
+      margin: 2px 5px 2px 0;
+      border-radius: 12px;
+      font-size: 0.75em;
+      color: #333;
+    }
+
+    .task small {
+      display: block;
+      color: #555;
+    }
+
+    .task button {
+      margin-top: 5px;
+      margin-right: 5px;
+      background-color: #eee;
+      border: none;
+      padding: 5px 8px;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+
+    .task button:hover {
+      background-color: #ddd;
+    }
+
+    .task input, .task select, .task textarea {
+      display: block;
+      margin: 5px 0;
+      padding: 5px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    h3 {
+      margin-bottom: 10px;
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Smart Task Manager</h1>
+
+  <div class="summary">
+    <span>🕒 Active Tasks: <span id="pendingCount">0</span></span>
+    <span>❗ Important Tasks: <span id="importantCount">0</span></span>
+  </div>
+
+  <form id="taskForm">
+    <input type="text" id="name" placeholder="Task name" required />
+    <textarea id="description" placeholder="Task description"></textarea>
+    <input type="date" id="due" />
+    <select id="project">
+      <option value="">-- Select Project --</option>
+      <option value="Reporter">Reporter</option>
+      <option value="Manager Near Me">Manager Near Me</option>
+      <option value="Elevation">Elevation</option>
+    </select>
+    <div id="labelContainer">
+      <label><input type="checkbox" value="Impact Analysis" /> Impact Analysis</label>
+      <label><input type="checkbox" value="Estimates" /> Estimates</label>
+      <label><input type="checkbox" value="Reply to Client" /> Reply to Client</label>
+    </div>
+    <select id="status">
+      <option value="normal">Normal</option>
+      <option value="important">Important</option>
+      <option value="completed">Completed</option>
+    </select>
+    <button type="submit">Add Task</button>
+  </form>
+
+  <div class="task-section">
+    <h3>📌 Active Tasks</h3>
+    <div id="pendingTasks" class="task-area" ondragover="allowDrop(event)" ondrop="drop(event, 'normal')"></div>
+
+    <h3>✅ Completed Tasks</h3>
+    <div id="completedTasks" class="task-area" ondragover="allowDrop(event)" ondrop="drop(event, 'completed')"></div>
+  </div>
+
+  <script>
+    let tasks = JSON.parse(localStorage.getItem('tasks') || '[]');
+
+    function saveTasks() {
+      localStorage.setItem('tasks', JSON.stringify(tasks));
+    }
+
+    function getColorForValue(value) {
+      let hash = 0;
+      for (let i = 0; i < value.length; i++) {
+        hash = value.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      return `hsl(${hash % 360}, 60%, 80%)`;
+    }
+
+    function renderTasks() {
+      const pending = document.getElementById('pendingTasks');
+      const completed = document.getElementById('completedTasks');
+      const pendingCount = document.getElementById('pendingCount');
+      const importantCount = document.getElementById('importantCount');
+
+      pending.innerHTML = '';
+      completed.innerHTML = '';
+
+      let pendingTotal = 0;
+      let importantTotal = 0;
+
+      tasks.forEach((task, index) => {
+        const div = document.createElement('div');
+        div.className = `task ${task.status}`;
+        div.draggable = true;
+        div.ondragstart = (e) => drag(e, index);
+
+        const projectColor = getColorForValue(task.project || '');
+
+        if (task.editing) {
+          div.innerHTML = `
+            <div class="task-content">
+              <input type="text" value="${task.name}" id="editName${index}" />
+              <textarea id="editDesc${index}">${task.description || ''}</textarea>
+              <input type="date" value="${task.due}" id="editDue${index}" />
+              <select id="editProj${index}">
+                <option value="">-- Select Project --</option>
+                <option value="Reporter" ${task.project === 'Reporter' ? 'selected' : ''}>Reporter</option>
+                <option value="Manager Near Me" ${task.project === 'Manager Near Me' ? 'selected' : ''}>Manager Near Me</option>
+                <option value="Elevation" ${task.project === 'Elevation' ? 'selected' : ''}>Elevation</option>
+              </select>
+              <select id="editStatus${index}">
+                <option value="normal" ${task.status === 'normal' ? 'selected' : ''}>Normal</option>
+                <option value="important" ${task.status === 'important' ? 'selected' : ''}>Important</option>
+                <option value="completed" ${task.status === 'completed' ? 'selected' : ''}>Completed</option>
+              </select>
+              <button onclick="saveEdit(${index})">💾 Save</button>
+              <button onclick="cancelEdit(${index})">❌ Cancel</button>
+            </div>
+          `;
+        } else {
+          div.innerHTML = `
+            <div class="task-content">
+              <strong>${task.name}</strong>
+              <small>${task.description || ''}</small>
+              <small>Due: ${task.due || "N/A"}</small>
+              ${task.labels?.map(label => 
+                `<span class="label-tag" style="background-color:${getColorForValue(label)}">${label}</span>`
+              ).join('') || ''}
+              <button onclick="editTask(${index})">✏️ Edit</button>
+              <button onclick="deleteTask(${index})">🗑️ Delete</button>
+            </div>
+            <div class="project-badge" style="background-color: ${projectColor}">${task.project || ''}</div>
+          `;
+        }
+
+        if (task.status === 'completed') {
+          completed.appendChild(div);
+        } else {
+          pending.appendChild(div);
+          pendingTotal++;
+          if (task.status === 'important') importantTotal++;
+        }
+      });
+
+      pendingCount.innerText = pendingTotal;
+      importantCount.innerText = importantTotal;
+    }
+
+    function editTask(index) {
+      tasks[index].editing = true;
+      renderTasks();
+    }
+
+    function cancelEdit(index) {
+      tasks[index].editing = false;
+      renderTasks();
+    }
+
+    function saveEdit(index) {
+      const task = tasks[index];
+      task.name = document.getElementById('editName' + index).value;
+      task.description = document.getElementById('editDesc' + index).value;
+      task.due = document.getElementById('editDue' + index).value;
+      task.project = document.getElementById('editProj' + index).value;
+      task.status = document.getElementById('editStatus' + index).value;
+      task.editing = false;
+      saveTasks();
+      renderTasks();
+    }
+
+    function deleteTask(index) {
+      tasks.splice(index, 1);
+      saveTasks();
+      renderTasks();
+    }
+
+    function drag(event, index) {
+      event.dataTransfer.setData("index", index);
+    }
+
+    function allowDrop(event) {
+      event.preventDefault();
+    }
+
+    function drop(event, newStatus) {
+      event.preventDefault();
+      const index = event.dataTransfer.getData("index");
+      tasks[index].status = newStatus;
+      saveTasks();
+      renderTasks();
+    }
+
+    document.getElementById('taskForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const name = document.getElementById('name').value;
+      const description = document.getElementById('description').value;
+      const due = document.getElementById('due').value;
+      const project = document.getElementById('project').value;
+      const status = document.getElementById('status').value;
+      const labelEls = document.querySelectorAll('#labelContainer input[type="checkbox"]');
+      const labels = Array.from(labelEls).filter(c => c.checked).map(c => c.value);
+
+      tasks.push({
+        name,
+        description,
+        due,
+        project,
+        status,
+        labels,
+        editing: false
+      });
+
+      saveTasks();
+      renderTasks();
+      this.reset();
+    });
+
+    renderTasks();
+  </script>
+
+</body>
+</html>
