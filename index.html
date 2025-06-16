@@ -168,13 +168,14 @@
   </div>
 
   <form id="taskForm">
-    <input type="text" id="name" placeholder="Task name" required />
+    <input type="text" id="name" placeholder="Task name" required autocomplete="off"/>
     <textarea id="description" placeholder="Task description"></textarea>
     <input type="date" id="due" />
     <select id="project">
       <option value="">-- Select Project --</option>
       <option value="Reporter">Reporter</option>
-      <option value="Manager Near Me">Manager Near Me</option>
+      <option value="Manager">Manager</option>
+      <option value="Near Me">Near Me</option>
       <option value="Elevation">Elevation</option>
     </select>
     <div id="labelContainer">
@@ -242,9 +243,15 @@
               <select id="editProj${index}">
                 <option value="">-- Select Project --</option>
                 <option value="Reporter" ${task.project === 'Reporter' ? 'selected' : ''}>Reporter</option>
-                <option value="Manager Near Me" ${task.project === 'Manager Near Me' ? 'selected' : ''}>Manager Near Me</option>
+                <option value="Manager" ${task.project === 'Manager' ? 'selected' : ''}>Manager</option>
+                <option value="Near Me" ${task.project === 'Near Me' ? 'selected' : ''}>Near Me</option>
                 <option value="Elevation" ${task.project === 'Elevation' ? 'selected' : ''}>Elevation</option>
               </select>
+              <div id="editLabels${index}">
+                ${['Impact Analysis', 'Estimates', 'Reply to Client'].map(label =>
+                  `<label><input type="checkbox" value="${label}" ${task.completedLabels?.includes(label) ? 'checked' : ''}/> ${label}</label>`
+                ).join('')}
+              </div>
               <select id="editStatus${index}">
                 <option value="normal" ${task.status === 'normal' ? 'selected' : ''}>Normal</option>
                 <option value="important" ${task.status === 'important' ? 'selected' : ''}>Important</option>
@@ -260,9 +267,9 @@
               <strong>${task.name}</strong>
               <small>${task.description || ''}</small>
               <small>Due: ${task.due || "N/A"}</small>
-              ${task.labels?.map(label => 
-                `<span class="label-tag" style="background-color:${getColorForValue(label)}">${label}</span>`
-              ).join('') || ''}
+              ${(task.labels || []).map(label =>
+                `<span class="label-tag" style="background-color: ${task.completedLabels?.includes(label) ? '#b2f2bb' : getColorForValue(label)}">${label}</span>`
+              ).join('')}
               <button onclick="editTask(${index})">✏️ Edit</button>
               <button onclick="deleteTask(${index})">🗑️ Delete</button>
             </div>
@@ -300,6 +307,11 @@
       task.due = document.getElementById('editDue' + index).value;
       task.project = document.getElementById('editProj' + index).value;
       task.status = document.getElementById('editStatus' + index).value;
+
+      const labelInputs = document.querySelectorAll(`#editLabels${index} input[type="checkbox"]`);
+      task.labels = Array.from(labelInputs).map(c => c.value);
+      task.completedLabels = Array.from(labelInputs).filter(c => c.checked).map(c => c.value);
+
       task.editing = false;
       saveTasks();
       renderTasks();
@@ -344,6 +356,7 @@
         project,
         status,
         labels,
+        completedLabels: [], // Only marked on edit
         editing: false
       });
 
@@ -357,3 +370,4 @@
 
 </body>
 </html>
+
